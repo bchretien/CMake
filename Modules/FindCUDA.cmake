@@ -156,10 +156,11 @@
 #     automatically for CUDA_ADD_LIBRARY and CUDA_ADD_EXECUTABLE.  Note that
 #     this is a function and not a macro.
 #
-#  CUDA_INCLUDE_DIRECTORIES( path0 path1 ... )
+#  CUDA_INCLUDE_DIRECTORIES([SYSTEM] path0 path1 ... )
 #  -- Sets the directories that should be passed to nvcc
 #     (e.g. nvcc -Ipath0 -Ipath1 ... ). These paths usually contain other .cu
-#     files.
+#     files. Using the SYSTEM keyword will result in treating the given paths
+#     as system include paths (e.g. nvcc -isystem path0 -isystem path1 ... ).
 #
 #
 #  CUDA_LINK_SEPARABLE_COMPILATION_OBJECTS( output_file_var cuda_target
@@ -804,9 +805,18 @@ find_package_handle_standard_args(CUDA
 
 ###############################################################################
 # Add include directories to pass to the nvcc command.
+# The "SYSTEM" keyword can be used to specify system include search paths.
 macro(CUDA_INCLUDE_DIRECTORIES)
-  foreach(dir ${ARGN})
-    list(APPEND CUDA_NVCC_INCLUDE_ARGS_USER -I${dir})
+  set( _dir_list ${ARGN} )
+  list(GET _dir_list 0 first)
+  if(${first} STREQUAL "SYSTEM")
+    set( _path_spec "-isystem " )
+    list(REMOVE_AT _dir_list 0)
+  else()
+    set( _path_spec "-I" )
+  endif()
+  foreach(dir ${_dir_list})
+    list(APPEND CUDA_NVCC_INCLUDE_ARGS_USER ${_path_spec}${dir})
   endforeach()
 endmacro()
 
@@ -882,7 +892,7 @@ function(CUDA_ADD_CUDA_INCLUDE_ONCE)
     endforeach()
   endif()
   if(_add)
-    include_directories(${CUDA_INCLUDE_DIRS})
+    include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
   endif()
 endfunction()
 
@@ -1019,7 +1029,7 @@ macro(CUDA_WRAP_SRCS cuda_target format generated_files)
   endif()
 
   # Initialize our list of includes with the user ones followed by the CUDA system ones.
-  set(CUDA_NVCC_INCLUDE_ARGS ${CUDA_NVCC_INCLUDE_ARGS_USER} "-I${CUDA_INCLUDE_DIRS}")
+  set(CUDA_NVCC_INCLUDE_ARGS ${CUDA_NVCC_INCLUDE_ARGS_USER} "-isystem ${CUDA_INCLUDE_DIRS}")
   # Get the include directories for this directory and use them for our nvcc command.
   get_directory_property(CUDA_NVCC_INCLUDE_DIRECTORIES INCLUDE_DIRECTORIES)
   if(CUDA_NVCC_INCLUDE_DIRECTORIES)
